@@ -59,11 +59,34 @@ export class NodeLoader{
 						geometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(buffer), 3));
 					}else if(property === "rgba"){
 						geometry.addAttribute('rgba', new THREE.BufferAttribute(new Uint8Array(buffer), 4, true));
+					}else if(property === "NORMAL"){
+						//geometry.addAttribute('rgba', new THREE.BufferAttribute(new Uint8Array(buffer), 4, true));
+						geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(buffer), 3));
 					}else if (property === "INDICES") {
 						let bufferAttribute = new THREE.BufferAttribute(new Uint8Array(buffer), 4);
 						bufferAttribute.normalized = true;
 						geometry.addAttribute('indices', bufferAttribute);
-					} 
+					}else{
+						const bufferAttribute = new THREE.BufferAttribute(new Float32Array(buffer), 1);
+
+						let batchAttribute = buffers[property].attribute;
+						bufferAttribute.potree = {
+							offset: buffers[property].offset,
+							scale: buffers[property].scale,
+							preciseBuffer: buffers[property].preciseBuffer,
+							range: batchAttribute.range,
+						};
+
+						geometry.addAttribute(property, bufferAttribute);
+
+						const attribute = pointAttributes.attributes.find(a => a.name === batchAttribute.name);
+						attribute.range[0] = Math.min(attribute.range[0], batchAttribute.range[0]);
+						attribute.range[1] = Math.max(attribute.range[1], batchAttribute.range[1]);
+
+						if(node.getLevel() === 0){
+							attribute.initialRange = batchAttribute.range;
+						}
+					}
 
 				}
 				// indices ??
@@ -102,29 +125,19 @@ export class NodeLoader{
 		}
 	}
 
-	async loadHierarchy(node){
+	parseHierarchy(node, buffer){
 
-		let {hierarchyByteOffset, hierarchyByteSize} = node;
-		let hierarchyPath = `${this.url}/../hierarchy.bin`;
-		
-		let first = hierarchyByteOffset;
-		let last = first + hierarchyByteSize - 1n;
-
-		let response = await fetch(hierarchyPath, {
-			headers: {
-				'content-type': 'multipart/byteranges',
-				'Range': `bytes=${first}-${last}`,
-			},
-		});
-
-		let buffer = await response.arrayBuffer();
 		let view = new DataView(buffer);
+		let tStart = performance.now();
 
 		let bytesPerNode = 22;
 		let numNodes = buffer.byteLength / bytesPerNode;
 
 		let octree = node.octreeGeometry;
-		let nodes = [node];
+		// let nodes = [node];
+		let nodes = new Array(numNodes);
+		nodes[0] = node;
+		let nodePos = 1;
 
 		for(let i = 0; i < numNodes; i++){
 			let current = nodes[i];
@@ -173,17 +186,50 @@ export class NodeLoader{
 				current.children[childIndex] = child;
 				child.parent = current;
 
-				nodes.push(child);
+				// nodes.push(child);
+				nodes[nodePos] = child;
+				nodePos++;
 			}
 		}
+
+		let duration = (performance.now() - tStart);
+
+		if(duration > 20){
+			let msg = `duration: ${duration}ms, numNodes: ${numNodes}`;
+			console.log(msg);
+		}
+	}
+
+	async loadHierarchy(node){
+
+		let {hierarchyByteOffset, hierarchyByteSize} = node;
+		let hierarchyPath = `${this.url}/../hierarchy.bin`;
+		
+		let first = hierarchyByteOffset;
+		let last = first + hierarchyByteSize - 1n;
+
+		let response = await fetch(hierarchyPath, {
+			headers: {
+				'content-type': 'multipart/byteranges',
+				'Range': `bytes=${first}-${last}`,
+			},
+		});
+
+
+
+		let buffer = await response.arrayBuffer();
+
+		this.parseHierarchy(node, buffer);
+
 	}
 
 }
 
+let tmpVec3 = new THREE.Vector3();
 function createChildAABB(aabb, index){
 	let min = aabb.min.clone();
 	let max = aabb.max.clone();
-	let size = new THREE.Vector3().subVectors(max, min);
+	let size = tmpVec3.subVectors(max, min);
 
 	if ((index & 0b0001) > 0) {
 		min.z += size.z / 2;
@@ -239,6 +285,22 @@ export class OctreeLoader_1_8{
 			let attribute = new PointAttribute(potreeAttributeName, type, numElements);
 
 			attributes.add(attribute);
+		}
+
+		{
+			// check if it has normals
+			let hasNormals = 
+				attributes.attributes.find(a => a.name === "NormalX") !== undefined &&
+				attributes.attributes.find(a => a.name === "NormalY") !== undefined &&
+				attributes.attributes.find(a => a.name === "NormalZ") !== undefined;
+
+			if(hasNormals){
+				let vector = {
+					name: "NORMAL",
+					attributes: ["NormalX", "NormalY", "NormalZ"],
+				};
+				attributes.addVector(vector);
+			}
 		}
 
 		return attributes;
