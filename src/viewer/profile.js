@@ -1027,6 +1027,10 @@ export class ProfileWindowController {
 
 	progressHandler (pointcloud, progress) {
 		for (let segment of progress.segments) {
+			for(let i = 0;i<segment.points.numPoints;i++)
+			{
+				segment.points.data.position[3 * i + 2] += pointcloud.position.z;
+			}
 			this.profileWindow.addPoints(pointcloud, segment.points);
 			this.numPoints += segment.points.numPoints;
 		}
