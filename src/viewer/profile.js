@@ -333,7 +333,8 @@ export class ProfileWindow extends EventDispatcher {
 					let position = new Float64Array([
 						point.position[0] + closest.pointcloud.position.x,
 						point.position[1] + closest.pointcloud.position.y,
-						point.position[2] + closest.pointcloud.position.z
+						// point.position[2] + closest.pointcloud.position.z
+						point.position[2]
 					]);
 
 					this.elRoot.find('#profileSelectionProperties').fadeIn(200);
