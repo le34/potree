@@ -78,19 +78,12 @@ export class NodeLoader{
 						};
 
 						geometry.addAttribute(property, bufferAttribute);
-
-						const attribute = pointAttributes.attributes.find(a => a.name === batchAttribute.name);
-						attribute.range[0] = Math.min(attribute.range[0], batchAttribute.range[0]);
-						attribute.range[1] = Math.max(attribute.range[1], batchAttribute.range[1]);
-
-						if(node.getLevel() === 0){
-							attribute.initialRange = batchAttribute.range;
-						}
 					}
 
 				}
 				// indices ??
 
+				node.density = data.density;
 				node.geometry = geometry;
 				node.loaded = true;
 				node.loading = false;
@@ -100,8 +93,11 @@ export class NodeLoader{
 			let pointAttributes = node.octreeGeometry.pointAttributes;
 			let scale = node.octreeGeometry.scale;
 
-			let min = node.octreeGeometry.offset.clone().add(node.boundingBox.min);
-			//let min = node.boundingBox.min;
+			let box = node.boundingBox;
+			let min = node.octreeGeometry.offset.clone().add(box.min);
+			let size = box.max.clone().sub(box.min);
+			let max = min.clone().add(size);
+
 			let offset = node.octreeGeometry.loader.offset;
 
 			let message = {
@@ -110,8 +106,9 @@ export class NodeLoader{
 				pointAttributes: pointAttributes,
 				scale: scale,
 				min: min,
+				max: max,
+				size: size,
 				offset: offset,
-				//min: node.boundingBox.min,
 			};
 
 			worker.postMessage(message, [message.buffer]);
@@ -190,6 +187,10 @@ export class NodeLoader{
 				nodes[nodePos] = child;
 				nodePos++;
 			}
+
+			// if((i % 500) === 0){
+			// 	yield;
+			// }
 		}
 
 		let duration = (performance.now() - tStart);
@@ -220,6 +221,28 @@ export class NodeLoader{
 		let buffer = await response.arrayBuffer();
 
 		this.parseHierarchy(node, buffer);
+
+		// let promise = new Promise((resolve) => {
+		// 	let generator = this.parseHierarchy(node, buffer);
+
+		// 	let repeatUntilDone = () => {
+		// 		let result = generator.next();
+
+		// 		if(result.done){
+		// 			resolve();
+		// 		}else{
+		// 			requestAnimationFrame(repeatUntilDone);
+		// 		}
+		// 	};
+			
+		// 	repeatUntilDone();
+		// });
+
+		// await promise;
+
+		
+
+
 
 	}
 
@@ -276,13 +299,21 @@ export class OctreeLoader_1_8{
 		};
 
 		for(let jsonAttribute of jsonAttributes){
-			let {name, description, size, numElements, elementSize} = jsonAttribute;
+			let {name, description, size, numElements, elementSize, min, max} = jsonAttribute;
 
 			let type = typenameTypeattributeMap[jsonAttribute.type];
 
 			let potreeAttributeName = replacements[name] ? replacements[name] : name;
 
 			let attribute = new PointAttribute(potreeAttributeName, type, numElements);
+
+			if(numElements === 1){
+				attribute.range = [min[0], max[0]];
+			}else{
+				attribute.range = [min, max];
+			}
+			
+			attribute.initialRange = attribute.range;
 
 			attributes.add(attribute);
 		}
@@ -323,6 +354,9 @@ export class OctreeLoader_1_8{
 		octree.url = url;
 		octree.spacing = metadata.spacing;
 		octree.scale = metadata.scale;
+
+		// let aPosition = metadata.attributes.find(a => a.name === "position");
+		// octree
 
 		let min = new THREE.Vector3(...metadata.boundingBox.min);
 		let max = new THREE.Vector3(...metadata.boundingBox.max);
