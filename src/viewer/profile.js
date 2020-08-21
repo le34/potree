@@ -341,8 +341,7 @@ export class ProfileWindow extends EventDispatcher {
 					let position = new Float64Array([
 						point.position[0] + closest.pointcloud.position.x,
 						point.position[1] + closest.pointcloud.position.y,
-						// point.position[2] + closest.pointcloud.position.z
-						point.position[2]
+						point.position[2] + closest.pointcloud.position.z
 					]);
 
 					this.elRoot.find('#profileSelectionProperties').fadeIn(200);
@@ -1047,10 +1046,6 @@ export class ProfileWindowController {
 
 	progressHandler (pointcloud, progress) {
 		for (let segment of progress.segments) {
-			for(let i = 0;i<segment.points.numPoints;i++)
-			{
-				segment.points.data.position[3 * i + 2] += pointcloud.position.z;
-			}
 			this.profileWindow.addPoints(pointcloud, segment.points);
 			this.numPoints += segment.points.numPoints;
 		}
