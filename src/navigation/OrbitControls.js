@@ -240,7 +240,7 @@ export class OrbitControls extends EventDispatcher{
 			let pitch = view.pitch;
 			let pivot = view.getPivot();
 
-			yaw -= progression * this.yawDelta;
+			yaw += progression * this.yawDelta;
 			pitch -= progression * this.pitchDelta;
 
 			view.yaw = yaw;
