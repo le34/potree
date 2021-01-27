@@ -77,7 +77,7 @@ export {OrbitControls} from "./navigation/OrbitControls.js";
 export {FirstPersonControls} from "./navigation/FirstPersonControls.js";
 export {EarthControls} from "./navigation/EarthControls.js";
 export {DeviceOrientationControls} from "./navigation/DeviceOrientationControls.js";
-export {VRControlls} from "./navigation/VRControlls.js";
+export {VRControls} from "./navigation/VRControls.js";
 
 import "./extensions/OrthographicCamera.js";
 import "./extensions/PerspectiveCamera.js";
@@ -94,8 +94,8 @@ export const workerPool = new WorkerPool();
 
 export const version = {
 	major: 1,
-	minor: 7,
-	suffix: '.1'
+	minor: 8,
+	suffix: '.0'
 };
 
 export let lru = new LRU();
